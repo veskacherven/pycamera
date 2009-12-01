@@ -10,29 +10,41 @@ import time
 
 #Признак сохранения кадра
 save=False
-show_image=False
+#show_image=False
+#Буфер для картинки
+picbuf=None
+#Путь для сохранения
+picpath="/media/mmc1/camera/images/"
 
-def save_jpeg(buffer):
-  pixbuf=gtk.gdk.pixbuf_new_from_data(buffer,gtk.gdk.COLORSPACE_RGB,False,8,640,480,3*640)
-  filename="/media/mmc1/camera/images/"+time.strftime("%y.%m.%d_%H-%M-%S", time.localtime())+".jpg"
+def save_jpeg():
+  global picbuf
+  global picpath
+  pixbuf=gtk.gdk.pixbuf_new_from_data(picbuf,gtk.gdk.COLORSPACE_RGB,False,8,640,480,3*640)
+  filename=picpath+time.strftime("%y.%m.%d_%H-%M-%S", time.localtime())+".jpg"
   pixbuf.save(filename,"jpeg",{"quality":"100"})
   print (filename)
 
 def buffer_cb(pad,buffer):
-#Тут можно что нибудь сделать с буфером
+#Если установлен признак save сохраняем буфер в picbuf
     global save
+    global picbuf
     if save==True:
       save=False
-      save_jpeg(buffer)
-      show_image=True
+      picbuf=buffer
+      #show_image=True
     return True
 
 def key_press_cb(widget,event):
+#При нажатии F6 устанавливаем признак save
     global save
     if event.keyval==gtk.keysyms.F6:
         save=True
     if event.keyval==gtk.keysyms.Escape:
         window.destroy()
+
+def key_release_cb(widget,event):
+#При отпускании F6 записываем буфер в jpeg
+    save_jpeg()
 
 def expose_cb(dummy1, dummy2, dummy3):
     #Тут устанавливаем где будет вывод xvimagesink
@@ -59,6 +71,7 @@ screen = None
 window = hildon.Window()
 window.connect("destroy", destroy)
 window.connect("key_press_event",key_press_cb)
+window.connect("key_release_event",key_release_cb)
 window.fullscreen()
 
 box=gtk.Fixed()
@@ -77,7 +90,7 @@ modeBtn = gtk.ToggleButton("Foto")
 modeBtn.connect("toggled",mode_change)
 hbox.add(modeBtn)
 
-dispBtn = gtk.ToggleButton("Display")
+dispBtn = gtk.ToggleButton("Live view")
 #dispBtn.connect("toggled",disp_change)
 hbox.add(dispBtn)
 
