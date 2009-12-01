@@ -44,6 +44,7 @@ def key_press_cb(widget,event):
 
 def key_release_cb(widget,event):
 #При отпускании F6 записываем буфер в jpeg
+    if event.keyval==gtk.keysyms.F6:
     save_jpeg()
 
 def expose_cb(dummy1, dummy2, dummy3):
