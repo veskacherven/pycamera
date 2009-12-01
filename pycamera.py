@@ -1,0 +1,107 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import gtk 
+import hildon
+import pygst
+pygst.require("0.10")
+import gst
+import Image
+import time
+
+#Признак сохранения кадра
+save=False
+show_image=False
+
+def save_jpeg(buffer):
+  pixbuf=gtk.gdk.pixbuf_new_from_data(buffer,gtk.gdk.COLORSPACE_RGB,False,8,640,480,3*640)
+  filename="/media/mmc1/camera/images/"+time.strftime("%y.%m.%d_%H-%M-%S", time.localtime())+".jpg"
+  pixbuf.save(filename,"jpeg",{"quality":"100"})
+  print (filename)
+
+def buffer_cb(pad,buffer):
+#Тут можно что нибудь сделать с буфером
+    global save
+    if save==True:
+      save=False
+      save_jpeg(buffer)
+      show_image=True
+    return True
+
+def key_press_cb(widget,event):
+    global save
+    if event.keyval==gtk.keysyms.F6:
+        save=True
+    if event.keyval==gtk.keysyms.Escape:
+        window.destroy()
+
+def expose_cb(dummy1, dummy2, dummy3):
+    #Тут устанавливаем где будет вывод xvimagesink
+    sink1.set_xwindow_id(screen.window.xid)
+
+def destroy(widget, data=None):
+    # it is important to stop pipeline so there will be no
+    # X-related errors when window is destroyed before the video sink
+    pipeline.set_state(gst.STATE_NULL)
+    gtk.main_quit()
+
+def mode_change (widget, data=None): 
+    pipeline.set_state(gst.STATE_NULL)
+    if modeBtn.get_active():
+      modeBtn.set_label("Video")
+    else:
+      modeBtn.set_label("Foto")
+    sink1.set_xwindow_id(screen.window.xid)
+    pipeline.set_state(gst.STATE_PLAYING)
+
+sink = None
+screen = None
+
+window = hildon.Window()
+window.connect("destroy", destroy)
+window.connect("key_press_event",key_press_cb)
+window.fullscreen()
+
+box=gtk.Fixed()
+window.add(box)
+
+screen = gtk.DrawingArea()
+screen.set_size_request(640, 480)
+screen.connect("expose-event",expose_cb,sink)
+box.put(screen,0,0)
+
+hbox=gtk.VBox()
+hbox.set_size_request(150, 480)
+box.put(hbox,645,0)
+
+modeBtn = gtk.ToggleButton("Foto")
+modeBtn.connect("toggled",mode_change)
+hbox.add(modeBtn)
+
+dispBtn = gtk.ToggleButton("Display")
+#dispBtn.connect("toggled",disp_change)
+hbox.add(dispBtn)
+
+pipeline = gst.Pipeline("mypipeline")
+src = gst.element_factory_make("v4l2src", "src")
+tee=gst.element_factory_make("tee", "tee")
+queue1= gst.element_factory_make("queue", "queue1")
+resizer = gst.element_factory_make("videoscale", "resizer")
+caps1=gst.element_factory_make("capsfilter", "caps1")
+caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
+sink1=gst.element_factory_make("xvimagesink", "sink")
+queue2= gst.element_factory_make("queue", "queue2")
+colorsp=gst.element_factory_make("ffmpegcolorspace", "colorsp1")
+caps2=gst.element_factory_make("capsfilter", "caps2")
+caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,width=640,height=480,bpp=24,depth=24,framerate=8/1"))
+sink2 = gst.element_factory_make("fakesink", "sink2")
+
+pad=colorsp.get_pad("src")
+pad.add_buffer_probe(buffer_cb)
+
+pipeline.add(src,tee,queue1,resizer,caps1,sink1,queue2,colorsp,caps2,sink2)
+gst.element_link_many(src,tee,queue1,resizer,caps1,sink1)
+gst.element_link_many(tee,queue2,colorsp,caps2,sink2)
+
+window.show_all()
+pipeline.set_state(gst.STATE_PLAYING)
+gtk.main()
