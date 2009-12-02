@@ -41,7 +41,6 @@ def buffer_cb(pad,buffer):
     if save==True:
       save=False
       picbuf=buffer
-#      save_jpeg()
     return True
 
 def key_press_cb(widget,event):
@@ -57,9 +56,9 @@ def key_release_cb(widget,event):
     if event.keyval==gtk.keysyms.F6:
         save_jpeg()
 
-def expose_cb(dummy1, dummy2, dummy3):
+def expose_cb(widget, event):
     #При перерисовке области screen устанавливаем где будет вывод xvimagesink
-    sink1.set_xwindow_id(screen.window.xid)
+    sink1.set_xwindow_id(widget.window.xid)
 
 def destroy(widget, data=None):
     # it is important to stop pipeline so there will be no
@@ -74,16 +73,14 @@ def mode_change (widget, data=None):
       modeBtn.set_label("Video")
     else:
       modeBtn.set_label("Foto")
-#    sink1.set_xwindow_id(screen.window.xid)
-#    pipeline.set_state(gst.STATE_PLAYING)
 
 def disp_change (widget, data=None): 
 # изменение отображения live view
     if dispBtn.get_active():
-      dispBtn.set_label("Live view off")
-#      make_foto_pipe()  #Труба для фото
+      dispBtn.set_label("Live view\n   off")
+#      make_live_foto_pipe()  #Труба для фото
     else:
-      dispBtn.set_label("Live view on")
+      dispBtn.set_label("Live view\n   on")
 #      make_live_foto_pipe()  #Труба для фото c предпросмотром
 
 def make_live_foto_pipe():
@@ -107,7 +104,7 @@ def make_live_foto_pipe():
     pipeline.add(src,tee,queue1,resizer,caps1,sink1,queue2,colorsp,caps2,sink2)
     gst.element_link_many(src,tee,queue1,resizer,caps1,sink1)
     gst.element_link_many(tee,queue2,colorsp,caps2,sink2)
-#    sink1.set_xwindow_id(screen.window.xid)
+    pipeline.set_state(gst.STATE_PLAYING)
 
 #Основная программа
 if hildon:
@@ -125,7 +122,7 @@ window.add(box)
 
 screen = gtk.DrawingArea()
 screen.set_size_request(640, 480)
-screen.connect("expose-event",expose_cb,sink1)
+screen.connect("expose-event",expose_cb)
 box.put(screen,0,0)
 
 hbox=gtk.VBox()
@@ -136,13 +133,12 @@ modeBtn = gtk.ToggleButton("Foto")
 modeBtn.connect("toggled",mode_change)
 hbox.add(modeBtn)
 
-dispBtn = gtk.ToggleButton("Live view on")
+dispBtn = gtk.ToggleButton("Live view\n   on")
 dispBtn.connect("toggled",disp_change)
 hbox.add(dispBtn)
 
-pipeline = gst.Pipeline("mypipeline")
+pipeline = gst.Pipeline()
 make_live_foto_pipe()  #Труба для фото
 
 window.show_all()
-pipeline.set_state(gst.STATE_PLAYING)
 gtk.main()
