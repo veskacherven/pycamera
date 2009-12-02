@@ -18,6 +18,8 @@ picbuf=None
 #Путь для сохранения - вместо жестко прописаного добавить чтение ini файла и создание инишки при отсутствии с парамертами по умолчанию
 picpath="/media/mmc1/camera/images/"
 
+sink=None
+
 def save_jpeg():
   global picbuf
   global picpath
@@ -67,8 +69,7 @@ def mode_change (widget, data=None):
     sink1.set_xwindow_id(screen.window.xid)
     pipeline.set_state(gst.STATE_PLAYING)
 
-def make_foto_pipe()
-	global pipeline
+def makefotopipe():
 	src = gst.element_factory_make("videotestsrc", "src")
 	#src = gst.element_factory_make("v4l2src", "src")
 	tee=gst.element_factory_make("tee", "tee")
