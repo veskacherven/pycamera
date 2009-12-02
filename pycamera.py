@@ -67,17 +67,28 @@ def destroy(widget, data=None):
     pipeline.set_state(gst.STATE_NULL)
     gtk.main_quit()
 
-def mode_change (widget, data=None): 
-    pipeline.set_state(gst.STATE_NULL)
+def mode_change (widget, data=None):
+# изменение режима фото/видео
+#    pipeline.set_state(gst.STATE_NULL)
     if modeBtn.get_active():
       modeBtn.set_label("Video")
     else:
       modeBtn.set_label("Foto")
-    sink1.set_xwindow_id(screen.window.xid)
-    pipeline.set_state(gst.STATE_PLAYING)
+#    sink1.set_xwindow_id(screen.window.xid)
+#    pipeline.set_state(gst.STATE_PLAYING)
 
-def makefotopipe():
+def disp_change (widget, data=None): 
+# изменение отображения live view
+    if dispBtn.get_active():
+      dispBtn.set_label("Live view off")
+#      make_foto_pipe()  #Труба для фото
+    else:
+      dispBtn.set_label("Live view on")
+#      make_live_foto_pipe()  #Труба для фото c предпросмотром
+
+def make_live_foto_pipe():
     global sink1
+    pipeline.set_state(gst.STATE_NULL)
     src = gst.element_factory_make("videotestsrc", "src")
     #src = gst.element_factory_make("v4l2src", "src")
     tee=gst.element_factory_make("tee", "tee")
@@ -96,6 +107,7 @@ def makefotopipe():
     pipeline.add(src,tee,queue1,resizer,caps1,sink1,queue2,colorsp,caps2,sink2)
     gst.element_link_many(src,tee,queue1,resizer,caps1,sink1)
     gst.element_link_many(tee,queue2,colorsp,caps2,sink2)
+#    sink1.set_xwindow_id(screen.window.xid)
 
 #Основная программа
 if hildon:
@@ -124,12 +136,12 @@ modeBtn = gtk.ToggleButton("Foto")
 modeBtn.connect("toggled",mode_change)
 hbox.add(modeBtn)
 
-dispBtn = gtk.ToggleButton("Live view")
-#dispBtn.connect("toggled",disp_change)
+dispBtn = gtk.ToggleButton("Live view on")
+dispBtn.connect("toggled",disp_change)
 hbox.add(dispBtn)
 
 pipeline = gst.Pipeline("mypipeline")
-makefotopipe()  #Труба для фото
+make_live_foto_pipe()  #Труба для фото
 
 window.show_all()
 pipeline.set_state(gst.STATE_PLAYING)
