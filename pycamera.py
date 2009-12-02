@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import gtk 
-import hildon
+try:
+  import hildon
+except ImportError:
+  hildon=None
 import pygst
 pygst.require("0.10")
 import gst
@@ -15,10 +18,13 @@ save=False
 
 #Буфер для картинки
 picbuf=None
-#Путь для сохранения - вместо жестко прописаного добавить чтение ini файла и создание инишки при отсутствии с парамертами по умолчанию
-picpath="/media/mmc1/camera/images/"
+if hildon:
+    #Путь для сохранения - вместо жестко прописаного добавить чтение ini файла и создание инишки при отсутствии с парамертами по умолчанию
+    picpath="/media/mmc1/camera/images/"
+else:
+    picpath="./"
 
-sink=None
+sink1=None #xvimagesink для вывода картинки
 
 def save_jpeg():
   global picbuf
@@ -26,7 +32,7 @@ def save_jpeg():
   pixbuf=gtk.gdk.pixbuf_new_from_data(picbuf,gtk.gdk.COLORSPACE_RGB,False,8,640,480,3*640)
   filename=picpath+time.strftime("%y.%m.%d_%H-%M-%S", time.localtime())+".jpg"
   pixbuf.save(filename,"jpeg",{"quality":"100"})
-  print ("File saved: ", filename)
+  print (filename)
 
 def buffer_cb(pad,buffer):
 #Если установлен признак save сохраняем буфер кадра в picbuf
@@ -35,6 +41,7 @@ def buffer_cb(pad,buffer):
     if save==True:
       save=False
       picbuf=buffer
+#      save_jpeg()
     return True
 
 def key_press_cb(widget,event):
@@ -70,38 +77,43 @@ def mode_change (widget, data=None):
     pipeline.set_state(gst.STATE_PLAYING)
 
 def makefotopipe():
-	src = gst.element_factory_make("videotestsrc", "src")
-	#src = gst.element_factory_make("v4l2src", "src")
-	tee=gst.element_factory_make("tee", "tee")
-	queue1= gst.element_factory_make("queue", "queue1")
-	resizer = gst.element_factory_make("videoscale", "resizer")
-	caps1=gst.element_factory_make("capsfilter", "caps1")
-	caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
-	sink1=gst.element_factory_make("xvimagesink", "sink")
-	queue2= gst.element_factory_make("queue", "queue2")
-	colorsp=gst.element_factory_make("ffmpegcolorspace", "colorsp1")
-	caps2=gst.element_factory_make("capsfilter", "caps2")
-	caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,width=640,height=480,bpp=24,depth=24,framerate=8/1"))
-	sink2 = gst.element_factory_make("fakesink", "sink2")
-	pad=colorsp.get_pad("src")
-	pad.add_buffer_probe(buffer_cb)
-	pipeline.add(src,tee,queue1,resizer,caps1,sink1,queue2,colorsp,caps2,sink2)
-	gst.element_link_many(src,tee,queue1,resizer,caps1,sink1)
-	gst.element_link_many(tee,queue2,colorsp,caps2,sink2)
+    global sink1
+    src = gst.element_factory_make("videotestsrc", "src")
+    #src = gst.element_factory_make("v4l2src", "src")
+    tee=gst.element_factory_make("tee", "tee")
+    queue1= gst.element_factory_make("queue", "queue1")
+    resizer = gst.element_factory_make("videoscale", "resizer")
+    caps1=gst.element_factory_make("capsfilter", "caps1")
+    caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
+    sink1=gst.element_factory_make("xvimagesink", "sink")
+    queue2= gst.element_factory_make("queue", "queue2")
+    colorsp=gst.element_factory_make("ffmpegcolorspace", "colorsp1")
+    caps2=gst.element_factory_make("capsfilter", "caps2")
+    caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,width=640,height=480,bpp=24,depth=24,framerate=8/1"))
+    sink2 = gst.element_factory_make("fakesink", "sink2")
+    pad=colorsp.get_pad("src")
+    pad.add_buffer_probe(buffer_cb)
+    pipeline.add(src,tee,queue1,resizer,caps1,sink1,queue2,colorsp,caps2,sink2)
+    gst.element_link_many(src,tee,queue1,resizer,caps1,sink1)
+    gst.element_link_many(tee,queue2,colorsp,caps2,sink2)
 
 #Основная программа
-window = hildon.Window()
+if hildon:
+    window = hildon.Window()
+    window.fullscreen()
+else:
+    window = gtk.Window()
+
 window.connect("destroy", destroy)
 window.connect("key_press_event",key_press_cb)
 window.connect("key_release_event",key_release_cb)
-window.fullscreen()
 
 box=gtk.Fixed()
 window.add(box)
 
 screen = gtk.DrawingArea()
 screen.set_size_request(640, 480)
-screen.connect("expose-event",expose_cb,sink)
+screen.connect("expose-event",expose_cb,sink1)
 box.put(screen,0,0)
 
 hbox=gtk.VBox()
@@ -117,7 +129,7 @@ dispBtn = gtk.ToggleButton("Live view")
 hbox.add(dispBtn)
 
 pipeline = gst.Pipeline("mypipeline")
-make_foto_pipe()  #Труба для фото
+makefotopipe()  #Труба для фото
 
 window.show_all()
 pipeline.set_state(gst.STATE_PLAYING)
