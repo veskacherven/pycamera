@@ -43,6 +43,7 @@ def buffer_cb(pad,buffer):
     global save
     global picbuf
     if save==True:
+      print ("frame buffer copied")
       save=False
       picbuf=buffer
     return True
@@ -73,19 +74,21 @@ def destroy(widget, data=None):
 
 def mode_change (widget, data=None):
 # изменение режима фото/видео
+# привязана к modeBtn
 #    pipeline.set_state(gst.STATE_NULL)
-    if modeBtn.get_active():
-      modeBtn.set_label("Video")
+    if widget.get_active():
+      widget.set_label("Video")
     else:
-      modeBtn.set_label("Foto")
+      widget.set_label("Foto")
 
 def disp_change (widget, data=None): 
 # изменение отображения live view
-    if dispBtn.get_active():
-      dispBtn.set_label("Live view\n   off")
+# привязана к dispBtn
+    if widget.get_active():
+      widget.set_label("Live view\n   off")
 #      make_foto_pipe()  #Труба для фото
     else:
-      dispBtn.set_label("Live view\n   on")
+      widget.set_label("Live view\n   on")
 #      make_live_foto_pipe()  #Труба для фото c предпросмотром
 
 def make_live_foto_pipe():
@@ -141,7 +144,7 @@ def create_interface():
   hbox=gtk.VBox()
   hbox.set_size_request(150, 480)
   box.put(hbox,645,0)
-  
+
   modeBtn = gtk.ToggleButton("Foto")
   modeBtn.connect("toggled",mode_change)
   hbox.add(modeBtn)
