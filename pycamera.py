@@ -13,6 +13,25 @@ import time
 
 #Глобальные объекты и переменные
 pipe=None
+#if hildon:
+#  src = gst.element_factory_make("v4l2src", "src")
+#else:
+src = gst.element_factory_make("videotestsrc")
+caps1=gst.element_factory_make("capsfilter")
+caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
+resizer = gst.element_factory_make("videoscale")
+tee=gst.element_factory_make("tee")
+queue1= gst.element_factory_make("queue")
+sink=gst.element_factory_make("xvimagesink")
+queue2= gst.element_factory_make("queue")
+colorsp=gst.element_factory_make("ffmpegcolorspace")
+caps2=gst.element_factory_make("capsfilter")
+caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,bpp=24,depth=24,framerate=8/1"))
+fakesink = gst.element_factory_make("fakesink")
+
+#pad=colorsp.get_pad("src")
+#pad.add_buffer_probe(buffer_cb)
+
 mode=None # Режим foto,livefoto,video,livevideo,record,liverecord,stream,livestream
 #Режимы на live с отображением картинки на экране
 #Кнопки
@@ -29,8 +48,6 @@ if hildon:
     picpath="/media/mmc1/camera/images/"
 else:
     picpath="./"
-
-sink1=None #xvimagesink для вывода картинки
 #---------------------------------------------------
 def save_jpeg():
   global picbuf
@@ -44,38 +61,69 @@ def buffer_cb(pad,buffer):
 #Если установлен признак save сохраняем буфер кадра в picbuf
     global save
     global picbuf
-    if save==True:
-      print ("frame buffer copied")
-      save=False
-      picbuf=buffer
+#    if save==True:
+#      print ("frame buffer copied")
+#      save=False
+#      picbuf=buffer
     return True
 #---------------------------------------------------
 def key_press_cb(widget,event):
 #При нажатии F6 устанавливаем признак save
+  global pipe
+  global caps1
+  global resizer
+  global tee
+  global queue1
+  global sink
+  global queue2
+  global colorsp
+  global caps2
+  global fakesink
+
   global save
   if event.keyval==gtk.keysyms.F6:
     if (mode=="foto") or (mode=="livefoto"):
       save=True
+      if mode=="livefoto":
+        #Повышаем качество для сьёмки
+        gst.element_unlink_many(tee,queue2,colorsp,caps2,sink2)
+        gst.element_unlink_many(src,caps1,tee,queue1,sink1)
+        caps1.set_property('caps', gst.caps_from_string("video/x-raw-rgb,width=640,height=480"))
+        gst.element_link_many(src,caps1,tee,queue1,sink1)
+        gst.element_link_many(tee,queue2,colorsp,caps2,sink2)
+
   if event.keyval==gtk.keysyms.Escape: #а по ESC выходим
     window.destroy()
-  #for test
-  if event.keyval==gtk.keysyms.F7:
-    pipe.set_state(gst.STATE_PAUSED)
-    wait(3)
-    pipe.set_state(gst.STATE_PLAYING)
-
 #---------------------------------------------------
 def key_release_cb(widget,event):
 #При отпускании F6 записываем буфер в jpeg
+  global pipe
+  global caps1
+  global resizer
+  global tee
+  global queue1
+  global xvimagesink
+  global queue2
+  global colorsp
+  global caps2
+  global fakesink
+
   if event.keyval==gtk.keysyms.F6:
-    if (mode=="foto") or (mode=="livefoto"):
+    if (mode=="foto") or (mode=="livefoto"):  
+      if mode=="livefoto":
+        #возвращаем назад пониженное каество для предпросмотра
+        gst.element_unlink_many(tee,queue2,colorsp,caps2,sink2)
+        gst.element_unlink_many(src,caps1,tee,queue1,sink1)
+        caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
+        gst.element_link_many(src,caps1,tee,queue1,sink1)
+        gst.element_link_many(tee,queue2,colorsp,caps2,sink2)
       save_jpeg()
 #---------------------------------------------------
 def expose_cb(widget, event):
   #При перерисовке области screen устанавливаем где будет вывод xvimagesink
-  global sink1
+  global sink
   if mode[0:4]=="live":
-    sink1.set_xwindow_id(widget.window.xid)
+    sink.set_xwindow_id(widget.window.xid)
 #---------------------------------------------------
 def destroy(widget, data=None):
   # it is important to stop pipeline so there will be no
@@ -105,8 +153,18 @@ def mode_change (widget, data=None):
   make_pipe()
 #---------------------------------------------------
 def make_pipe():
-  global sink1
   global pipe
+  global caps1
+  global resizer
+  global tee
+  global queue1
+  global sink
+  global queue2
+  global colorsp
+  global caps2
+  global tmpcaps
+  global fakesink
+
   global mode
   print (mode)
   #Убиваем трубу
@@ -116,52 +174,27 @@ def make_pipe():
     pass
   pipe=None
   pipe=gst.Pipeline()
-  #if hildon:
-  #  src = gst.element_factory_make("v4l2src", "src")
-  #else:
-  src = gst.element_factory_make("videotestsrc", "src")
+
+#  pad=colorsp.get_pad("src")
+#  pad.add_buffer_probe(buffer_cb)
 
   if mode=="foto":
-    colorsp=gst.element_factory_make("ffmpegcolorspace", "colorsp1")
-    caps2=gst.element_factory_make("capsfilter", "caps2")
-    caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,width=640,height=480,bpp=24,depth=24,framerate=8/1"))
-    sink2 = gst.element_factory_make("fakesink", "sink2")
-    pad=colorsp.get_pad("src")
-    pad.add_buffer_probe(buffer_cb)
-    pipe.add(src,colorsp,caps2,sink2)
-    gst.element_link_many(src,colorsp,caps2,sink2)
+    pipe.add(src,colorsp,caps2,fakesink)
+    gst.element_link_many(src,colorsp,caps2,fakesink)
+    #gst-launch-0.10 videotestsrc ! ffmpegcolorspace ! video/x-raw-rgb,width=640,height=480,bpp=24,depth=24,framerate=8/1 ! fakesink
 
   if mode=="livefoto":
-    caps1=gst.element_factory_make("capsfilter", "caps1")
-    caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
-    tee=gst.element_factory_make("tee", "tee")
-    queue1= gst.element_factory_make("queue", "queue1")
-#    resizer = gst.element_factory_make("videoscale", "resizer")
-    sink1=gst.element_factory_make("xvimagesink", "sink")
-    queue2= gst.element_factory_make("queue", "queue2")
-    colorsp=gst.element_factory_make("ffmpegcolorspace", "colorsp1")
-    caps2=gst.element_factory_make("capsfilter", "caps2")
-    caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,bpp=24,depth=24,framerate=8/1"))
-    sink2 = gst.element_factory_make("fakesink", "sink2")
-    pad=colorsp.get_pad("src")
-    pad.add_buffer_probe(buffer_cb)
-    pipe.add(src,caps1,tee,queue1,sink1,queue2,sink2)
-    gst.element_link_many(src,caps1,tee,queue1,sink1)
-    gst.element_link_many(tee,queue2,sink2)
+    pipe.add(src,tee,queue1,resizer,caps1,sink,queue2,colorsp,caps2,fakesink)
+    gst.element_link_many(src,tee,queue1,caps1,resizer,sink)
+    gst.element_link_many(tee,queue2,colorsp,caps2,fakesink)
+    #gst-launch-0.10 videotestsrc ! tee name=tee tee. ! queue ! xvimagesink tee. ! queue ! ffmpegcolorspace ! video/x-raw-rgb,width=640,height=480,bpp=24,depth=24,framerate=8/1 ! fakesink
 
   if mode=="video":
     #в режиме video труба создаётся только непосредственно при записи
-    src = gst.element_factory_make("fakesrc", "src")
-    sink2 = gst.element_factory_make("fakesink", "sink2")
-    pipe.add(src,sink2)
-    gst.element_link_many(src,sink2)
+    pass
 
   if mode=="livevideo":
-    caps1=gst.element_factory_make("capsfilter", "caps1")
-    caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
-    sink1=gst.element_factory_make("xvimagesink", "sink")
-    pipe.add(src,caps1,sink1)
-    gst.element_link_many(src,caps1,sink1)
+     pass
 
   pipe.set_state(gst.STATE_PLAYING)
 #---------------------------------------------------
