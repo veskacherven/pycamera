@@ -14,6 +14,9 @@ import time
 #Глобальные объекты и переменные
 pipe=None
 mode=None # Режим foto,livefoto,video,livevideo
+#Кнопки
+dispBtn=None
+modeBtn=None
 #Признак того, что кадр в буффере нкжно сохраненить в файл
 save=False
 #добавить трёхсекундный просмотр картинки после съёмки, если включено Live view
@@ -73,23 +76,20 @@ def destroy(widget, data=None):
 
 def mode_change (widget, data=None):
 # изменение режима фото/видео
-# привязана к modeBtn
-#    pipeline.set_state(gst.STATE_NULL)
-    if widget.get_active():
-      widget.set_label("Video")
-    else:
-      widget.set_label("Foto")
-
-def disp_change (widget, data=None): 
-# изменение отображения live view
-# привязана к dispBtn
   global mode
-  if widget.get_active():
-    widget.set_label("Live view\n   on")
+  global modeBtn
+  global dispBtn
+  if modeBtn.get_active():
+    modeBtn.set_label("Video")
+  else:
+    modeBtn.set_label("Foto")
+ 
+  if dispBtn.get_active():
+    dispBtn.set_label("Live view\n   on")
     mode="livefoto"
     make_pipe()
   else:
-    widget.set_label("Live view\n   off")
+    dispBtn.set_label("Live view\n   off")
     mode="foto"
     make_pipe()
 
@@ -97,7 +97,6 @@ def make_pipe():
   global sink1
   global pipe
   global mode
-
   print (mode)
   try:
     pipe.set_state(gst.STATE_NULL)
@@ -143,6 +142,8 @@ def make_pipe():
 
 def create_interface():
   global screen
+  global dispBtn
+  global modeBtn
   box=gtk.Fixed()
   window.add(box)
   screen = gtk.DrawingArea()
@@ -158,7 +159,7 @@ def create_interface():
   hbox.add(modeBtn)
 
   dispBtn = gtk.ToggleButton("Live view\n   on")
-  dispBtn.connect("toggled",disp_change)
+  dispBtn.connect("toggled",mode_change)
   hbox.add(dispBtn)
 
 #Основная программа
