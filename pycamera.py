@@ -79,25 +79,28 @@ def mode_change (widget, data=None):
   global mode
   global modeBtn
   global dispBtn
-  if modeBtn.get_active():
-    modeBtn.set_label("Video")
-  else:
-    modeBtn.set_label("Foto")
- 
   if dispBtn.get_active():
     dispBtn.set_label("Live view\n   on")
-    mode="livefoto"
-    make_pipe()
+    mode="live"
   else:
     dispBtn.set_label("Live view\n   off")
-    mode="foto"
-    make_pipe()
+    mode=""
+
+  if modeBtn.get_active():
+    modeBtn.set_label("Video")
+    mode=mode+"video"
+  else:
+    modeBtn.set_label("Foto")
+    mode=mode+"foto"
+
+  make_pipe()
 
 def make_pipe():
   global sink1
   global pipe
   global mode
   print (mode)
+  #Убиваем трубу
   try:
     pipe.set_state(gst.STATE_NULL)
   except AttributeError:
@@ -173,7 +176,6 @@ window.connect("key_press_event",key_press_cb)
 window.connect("key_release_event",key_release_cb)
 
 create_interface()
-mode="foto"
-make_pipe()
+mode_change(None)
 window.show_all()
 gtk.main()
