@@ -34,6 +34,8 @@ fakesink = gst.element_factory_make("fakesink")
 
 mode=None # Режим foto,livefoto,video,livevideo,record,liverecord,stream,livestream
 #Режимы на live с отображением картинки на экране
+res="160x120"
+
 #Кнопки
 dispBtn=None
 modeBtn=None
@@ -69,6 +71,7 @@ def buffer_cb(pad,buffer):
 #---------------------------------------------------
 def key_press_cb(widget,event):
 #При нажатии F6 устанавливаем признак save
+  global screen
   global pipe
   global caps1
   global resizer
@@ -79,53 +82,60 @@ def key_press_cb(widget,event):
   global colorsp
   global caps2
   global fakesink
-
+  global res
   global save
   if event.keyval==gtk.keysyms.F6:
     if (mode=="foto") or (mode=="livefoto"):
       save=True
-
-    if mode=="foto":
+    if res=="160x120":
+      pipe.set_state(gst.STATE_READY)
       #Повышаем качество для сьёмки
-      gst.element_unlink_many(src,colorsp,caps2,fakesink)
-      caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,width=640,height=480"))
-      gst.element_link_many(src,caps1,tee,queue1,sink1)
-      gst.element_link_many(tee,queue2,colorsp,caps2,sink2)
-
-    if mode=="livefoto":
-      #Повышаем качество для сьёмки
-      gst.element_unlink_many(tee,queue2,colorsp,caps2,sink2)
-      gst.element_unlink_many(src,caps1,tee,queue1,sink1)
-      caps1.set_property('caps', gst.caps_from_string("video/x-raw-rgb,width=640,height=480"))
-      gst.element_link_many(src,caps1,tee,queue1,sink1)
-      gst.element_link_many(tee,queue2,colorsp,caps2,sink2)
+      if mode=="foto":
+        caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480"))
+        pipe.set_state(gst.STATE_PLAYING)
+      if mode=="livefoto":
+        caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480"))
+        pipe.set_state(gst.STATE_PLAYING)
+        sink.set_xwindow_id(screen.window.xid)
+      res="680x480"
+      print (res)
 
   if event.keyval==gtk.keysyms.Escape: #а по ESC выходим
     window.destroy()
 #---------------------------------------------------
 def key_release_cb(widget,event):
 #При отпускании F6 записываем буфер в jpeg
+  global screen
   global pipe
   global caps1
   global resizer
   global tee
   global queue1
-  global xvimagesink
+  global sink
   global queue2
   global colorsp
   global caps2
   global fakesink
-
+  global res
   if event.keyval==gtk.keysyms.F6:
-    if (mode=="foto") or (mode=="livefoto"):  
-      if mode=="livefoto":
-        #возвращаем назад пониженное каество для предпросмотра
-        gst.element_unlink_many(tee,queue2,colorsp,caps2,sink2)
-        gst.element_unlink_many(src,caps1,tee,queue1,sink1)
+    if res=="680x480":
+      #возвращаем назад пониженное качество для предпросмотра
+      pipe.set_state(gst.STATE_READY) 
+      if mode=="foto":
         caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
-        gst.element_link_many(src,caps1,tee,queue1,sink1)
-        gst.element_link_many(tee,queue2,colorsp,caps2,sink2)
-      save_jpeg()
+#      save_jpeg()
+      if mode=="livefoto":
+        #возвращаем назад пониженное качество для предпросмотра
+        #gst.element_unlink_many(tee,queue2,colorsp,caps2,fakesink)
+        #gst.element_unlink_many(src,caps1,tee,queue1,sink)
+        caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
+        #gst.element_link_many(src,caps1,tee,queue1,sink)
+        #gst.element_link_many(tee,queue2,colorsp,caps2,fakesink)
+        pipe.set_state(gst.STATE_PLAYING)
+        sink.set_xwindow_id(screen.window.xid)
+      res="160x120"
+      print (res)
+  #      save_jpeg()
 #---------------------------------------------------
 def expose_cb(widget, event):
   #При перерисовке области screen устанавливаем где будет вывод xvimagesink
