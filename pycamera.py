@@ -84,13 +84,21 @@ def key_press_cb(widget,event):
   if event.keyval==gtk.keysyms.F6:
     if (mode=="foto") or (mode=="livefoto"):
       save=True
-      if mode=="livefoto":
-        #Повышаем качество для сьёмки
-        gst.element_unlink_many(tee,queue2,colorsp,caps2,sink2)
-        gst.element_unlink_many(src,caps1,tee,queue1,sink1)
-        caps1.set_property('caps', gst.caps_from_string("video/x-raw-rgb,width=640,height=480"))
-        gst.element_link_many(src,caps1,tee,queue1,sink1)
-        gst.element_link_many(tee,queue2,colorsp,caps2,sink2)
+
+    if mode=="foto":
+      #Повышаем качество для сьёмки
+      gst.element_unlink_many(src,colorsp,caps2,fakesink)
+      caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,width=640,height=480"))
+      gst.element_link_many(src,caps1,tee,queue1,sink1)
+      gst.element_link_many(tee,queue2,colorsp,caps2,sink2)
+
+    if mode=="livefoto":
+      #Повышаем качество для сьёмки
+      gst.element_unlink_many(tee,queue2,colorsp,caps2,sink2)
+      gst.element_unlink_many(src,caps1,tee,queue1,sink1)
+      caps1.set_property('caps', gst.caps_from_string("video/x-raw-rgb,width=640,height=480"))
+      gst.element_link_many(src,caps1,tee,queue1,sink1)
+      gst.element_link_many(tee,queue2,colorsp,caps2,sink2)
 
   if event.keyval==gtk.keysyms.Escape: #а по ESC выходим
     window.destroy()
@@ -179,13 +187,13 @@ def make_pipe():
 #  pad.add_buffer_probe(buffer_cb)
 
   if mode=="foto":
-    pipe.add(src,colorsp,caps2,fakesink)
-    gst.element_link_many(src,colorsp,caps2,fakesink)
-    #gst-launch-0.10 videotestsrc ! ffmpegcolorspace ! video/x-raw-rgb,width=640,height=480,bpp=24,depth=24,framerate=8/1 ! fakesink
+    pipe.add(src,caps1,colorsp,caps2,fakesink)
+    gst.element_link_many(src,caps1,colorsp,caps2,fakesink)
+    #gst-launch-0.10 videotestsrc ! video/x-raw-yuv,width=160,height=120,framerate=8/1 ! ffmpegcolorspace ! video/x-raw-rgb,bpp=24,depth=24,framerate=8/1 ! fakesink
 
   if mode=="livefoto":
-    pipe.add(src,tee,queue1,resizer,caps1,sink,queue2,colorsp,caps2,fakesink)
-    gst.element_link_many(src,tee,queue1,caps1,resizer,sink)
+    pipe.add(src,caps1,tee,queue1,sink,queue2,colorsp,caps2,fakesink)
+    gst.element_link_many(src,caps1,tee,queue1,sink)
     gst.element_link_many(tee,queue2,colorsp,caps2,fakesink)
     #gst-launch-0.10 videotestsrc ! tee name=tee tee. ! queue ! xvimagesink tee. ! queue ! ffmpegcolorspace ! video/x-raw-rgb,width=640,height=480,bpp=24,depth=24,framerate=8/1 ! fakesink
 
@@ -194,7 +202,9 @@ def make_pipe():
     pass
 
   if mode=="livevideo":
-     pass
+    pipe.add(src,caps1,tee,queue1,sink,queue2,colorsp,caps2,fakesink)
+    gst.element_link_many(src,caps1,tee,queue1,sink)
+    gst.element_link_many(tee,queue2,colorsp,caps2,fakesink)
 
   pipe.set_state(gst.STATE_PLAYING)
 #---------------------------------------------------
