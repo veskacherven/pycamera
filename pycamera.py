@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import gtk 
+import gtk
 try:
   import hildon
 except ImportError:
@@ -10,7 +10,7 @@ pygst.require("0.10")
 import gst
 import Image
 import time
-import gobject
+import gobject #for idle loop
 
 #Глобальные объекты и переменные
 pipe=None
