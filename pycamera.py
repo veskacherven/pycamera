@@ -65,12 +65,15 @@ def buffer_cb(pad,buffer):
       print ("frame buffer copied")
       save=False
       picbuf=buffer
-      gobject.idle_add(pause_pipe) #Adds a function to be called whenever there are no higher priority events pending
+      if mode=="livefoto":
+        gobject.idle_add(pause_pipe) #Adds a function to be called whenever there are no higher priority events pending
     return True
 #---------------------------------------------------
 def pause_pipe():
+  global pipe
   print ("pause pipe")
-  pipe.set_state(gst.STATE_READY)
+  pipe.set_state(gst.STATE_NULL)
+  pipe=None
   return False #If the function returns FALSE it is automatically removed from the list
 
 def key_press_cb(widget,event):
@@ -93,9 +96,11 @@ def key_release_cb(widget,event):
   global pipe
   global ShotPressed
   if event.keyval==gtk.keysyms.F6:
-      if (mode=="foto") or (mode=="livefoto"):
+      if mode=="foto":
         save_jpeg()
-        pipe.set_state(gst.STATE_PLAYING)
+      if mode=="livefoto":
+        save_jpeg()
+        make_pipe()
         print ("resume pipe")
       ShotPressed=False  #снимаем признак нажатия кнопки спуска
 
@@ -134,6 +139,7 @@ def mode_change (widget, data=None):
   make_pipe()
 #---------------------------------------------------
 def make_pipe():
+  global screen
   global pipe
   global caps1
   global resizer
@@ -157,9 +163,6 @@ def make_pipe():
   pipe=None
   pipe=gst.Pipeline()
 
-#  pad=colorsp.get_pad("src")
-#  pad.add_buffer_probe(buffer_cb)
-
   if mode=="foto":
     pipe.add(src,caps1,colorsp,caps2,fakesink)
     gst.element_link_many(src,caps1,colorsp,caps2,fakesink)
@@ -181,6 +184,8 @@ def make_pipe():
     gst.element_link_many(tee,queue2,colorsp,caps2,fakesink)
 
   pad.add_buffer_probe(buffer_cb)
+  if mode[0:4]=="live":
+    sink.set_xwindow_id(screen.window.xid)
   pipe.set_state(gst.STATE_PLAYING)
 #---------------------------------------------------
 def create_interface():
