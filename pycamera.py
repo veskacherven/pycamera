@@ -18,8 +18,7 @@ if hildon:
 else:
   src = gst.element_factory_make("videotestsrc")
 caps1=gst.element_factory_make("capsfilter")
-caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
-resizer = gst.element_factory_make("videoscale")
+caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480,framerate=8/"))
 tee=gst.element_factory_make("tee")
 queue1= gst.element_factory_make("queue")
 sink=gst.element_factory_make("xvimagesink")
@@ -32,10 +31,9 @@ fakesink = gst.element_factory_make("fakesink")
 #pad=colorsp.get_pad("src")
 #pad.add_buffer_probe(buffer_cb)
 
-mode=None # Режим foto,livefoto,video,livevideo,record,liverecord,stream,livestream
+mode="foto" # Режим foto,livefoto,video,livevideo,record,liverecord,stream,livestream
 #Режимы на live с отображением картинки на экране
-res="160x120"
-
+ShotPressed=False
 #Кнопки
 dispBtn=None
 modeBtn=None
@@ -50,6 +48,7 @@ if hildon:
     picpath="/media/mmc1/camera/images/"
 else:
     picpath="./"
+
 #---------------------------------------------------
 def save_jpeg():
   global picbuf
@@ -63,84 +62,40 @@ def buffer_cb(pad,buffer):
 #Если установлен признак save сохраняем буфер кадра в picbuf
     global save
     global picbuf
-#    if save==True:
-#      print ("frame buffer copied")
-#      save=False
-#      picbuf=buffer
+    if save==True:
+      print ("frame buffer copied")
+      save=False
+      picbuf=buffer
     return True
 #---------------------------------------------------
 def key_press_cb(widget,event):
 #При нажатии F6 устанавливаем признак save
-  global screen
   global pipe
-  global caps1
-  global resizer
-  global tee
-  global queue1
-  global sink
-  global queue2
-  global colorsp
-  global caps2
-  global fakesink
-  global res
   global save
+  global ShotPressed
   if event.keyval==gtk.keysyms.F6:
-    if (mode=="foto") or (mode=="livefoto"):
-      save=True
-    if res=="160x120":
-      pipe.set_state(gst.STATE_PAUSED)
-      #Повышаем качество для сьёмки
-      if mode=="foto":
-        caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480"))
-        pipe.set_state(gst.STATE_PLAYING)
-      if mode=="livefoto":
-        src.unlink(caps1)
-        caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480"))
-        src.link(caps1)
-        #gst.element_link_many(src,caps1,tee,queue1,sink)
-        #gst.element_link_many(tee,queue2,colorsp,caps2,fakesink)
-        pipe.set_state(gst.STATE_PLAYING)
-        sink.set_xwindow_id(screen.window.xid)
-      res="680x480"
-      print (res)
+    if ShotPressed==False: #Для избежания автоповтора нажатий
+      ShotPressed=True
+      if (mode=="foto") or (mode=="livefoto"):
+        save=True
+        #приостанавливаем картику на время записи jpeg
+        pipe.set_state(gst.STATE_READY)
+        print ("wait for key release")
 
   if event.keyval==gtk.keysyms.Escape: #а по ESC выходим
     window.destroy()
 #---------------------------------------------------
 def key_release_cb(widget,event):
 #При отпускании F6 записываем буфер в jpeg
-  global screen
   global pipe
-  global caps1
-  global resizer
-  global tee
-  global queue1
-  global sink
-  global queue2
-  global colorsp
-  global caps2
-  global fakesink
-  global res
+  global ShotPressed
   if event.keyval==gtk.keysyms.F6:
-    if res=="680x480":
-      #возвращаем назад пониженное качество для предпросмотра
-      pipe.set_state(gst.STATE_PAUSED) 
-      if mode=="foto":
-        caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
+      if (mode=="foto") or (mode=="livefoto"):
+#        save_jpeg()
         pipe.set_state(gst.STATE_PLAYING)
-#      save_jpeg()
-      if mode=="livefoto":
-        #возвращаем назад пониженное качество для предпросмотра
-        #gst.element_unlink_many(tee,queue2,colorsp,caps2,fakesink)
-        #gst.element_unlink_many(src,caps1,tee,queue1,sink)
-        caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
-        #gst.element_link_many(src,caps1,tee,queue1,sink)
-        #gst.element_link_many(tee,queue2,colorsp,caps2,fakesink)
-        pipe.set_state(gst.STATE_PLAYING)
-        sink.set_xwindow_id(screen.window.xid)
-      res="160x120"
-      print (res)
-  #      save_jpeg()
+        print ("resume pipe")
+      ShotPressed=False  #снимаем признак нажатия кнопки спуска
+
 #---------------------------------------------------
 def expose_cb(widget, event):
   #При перерисовке области screen устанавливаем где будет вывод xvimagesink
