@@ -13,10 +13,10 @@ import time
 
 #Глобальные объекты и переменные
 pipe=None
-#if hildon:
-#  src = gst.element_factory_make("v4l2src", "src")
-#else:
-src = gst.element_factory_make("videotestsrc")
+if hildon:
+  src = gst.element_factory_make("v4l2src", "src")
+else:
+  src = gst.element_factory_make("videotestsrc")
 caps1=gst.element_factory_make("capsfilter")
 caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
 resizer = gst.element_factory_make("videoscale")
@@ -88,13 +88,17 @@ def key_press_cb(widget,event):
     if (mode=="foto") or (mode=="livefoto"):
       save=True
     if res=="160x120":
-      pipe.set_state(gst.STATE_READY)
+      pipe.set_state(gst.STATE_PAUSED)
       #Повышаем качество для сьёмки
       if mode=="foto":
         caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480"))
         pipe.set_state(gst.STATE_PLAYING)
       if mode=="livefoto":
+        src.unlink(caps1)
         caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480"))
+        src.link(caps1)
+        #gst.element_link_many(src,caps1,tee,queue1,sink)
+        #gst.element_link_many(tee,queue2,colorsp,caps2,fakesink)
         pipe.set_state(gst.STATE_PLAYING)
         sink.set_xwindow_id(screen.window.xid)
       res="680x480"
@@ -120,9 +124,10 @@ def key_release_cb(widget,event):
   if event.keyval==gtk.keysyms.F6:
     if res=="680x480":
       #возвращаем назад пониженное качество для предпросмотра
-      pipe.set_state(gst.STATE_READY) 
+      pipe.set_state(gst.STATE_PAUSED) 
       if mode=="foto":
         caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=160,height=120"))
+        pipe.set_state(gst.STATE_PLAYING)
 #      save_jpeg()
       if mode=="livefoto":
         #возвращаем назад пониженное качество для предпросмотра
