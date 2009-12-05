@@ -10,6 +10,7 @@ pygst.require("0.10")
 import gst
 import Image
 import time
+import gobject
 
 #Глобальные объекты и переменные
 pipe=None
@@ -27,9 +28,7 @@ colorsp=gst.element_factory_make("ffmpegcolorspace")
 caps2=gst.element_factory_make("capsfilter")
 caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,bpp=24,depth=24,framerate=8/1"))
 fakesink = gst.element_factory_make("fakesink")
-
-#pad=colorsp.get_pad("src")
-#pad.add_buffer_probe(buffer_cb)
+pad=colorsp.get_pad("src")
 
 mode="foto" # Режим foto,livefoto,video,livevideo,record,liverecord,stream,livestream
 #Режимы на live с отображением картинки на экране
@@ -62,12 +61,18 @@ def buffer_cb(pad,buffer):
 #Если установлен признак save сохраняем буфер кадра в picbuf
     global save
     global picbuf
-    if save==True:
+    if save:
       print ("frame buffer copied")
       save=False
       picbuf=buffer
+      gobject.idle_add(pause_pipe) #Adds a function to be called whenever there are no higher priority events pending
     return True
 #---------------------------------------------------
+def pause_pipe():
+  print ("pause pipe")
+  pipe.set_state(gst.STATE_READY)
+  return False #If the function returns FALSE it is automatically removed from the list
+
 def key_press_cb(widget,event):
 #При нажатии F6 устанавливаем признак save
   global pipe
@@ -78,9 +83,7 @@ def key_press_cb(widget,event):
       ShotPressed=True
       if (mode=="foto") or (mode=="livefoto"):
         save=True
-        #приостанавливаем картику на время записи jpeg
-        pipe.set_state(gst.STATE_READY)
-        print ("wait for key release")
+        print("save flag set")
 
   if event.keyval==gtk.keysyms.Escape: #а по ESC выходим
     window.destroy()
@@ -91,7 +94,7 @@ def key_release_cb(widget,event):
   global ShotPressed
   if event.keyval==gtk.keysyms.F6:
       if (mode=="foto") or (mode=="livefoto"):
-#        save_jpeg()
+        save_jpeg()
         pipe.set_state(gst.STATE_PLAYING)
         print ("resume pipe")
       ShotPressed=False  #снимаем признак нажатия кнопки спуска
@@ -142,6 +145,7 @@ def make_pipe():
   global caps2
   global tmpcaps
   global fakesink
+  global pad
 
   global mode
   print (mode)
@@ -176,6 +180,7 @@ def make_pipe():
     gst.element_link_many(src,caps1,tee,queue1,sink)
     gst.element_link_many(tee,queue2,colorsp,caps2,fakesink)
 
+  pad.add_buffer_probe(buffer_cb)
   pipe.set_state(gst.STATE_PLAYING)
 #---------------------------------------------------
 def create_interface():
