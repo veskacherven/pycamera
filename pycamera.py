@@ -28,7 +28,6 @@ colorsp=gst.element_factory_make("ffmpegcolorspace")
 caps2=gst.element_factory_make("capsfilter")
 caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,bpp=24,depth=24,framerate=8/1"))
 fakesink = gst.element_factory_make("fakesink")
-pad=colorsp.get_pad("src")
 
 mode="foto" # Режим foto,livefoto,video,livevideo,record,liverecord,stream,livestream
 #Режимы на live с отображением картинки на экране
@@ -53,7 +52,7 @@ def save_jpeg():
   global picbuf
   global picpath
   pixbuf=gtk.gdk.pixbuf_new_from_data(picbuf,gtk.gdk.COLORSPACE_RGB,False,8,640,480,3*640)
-  filename=picpath+time.strftime("%y.%m.%d_%H-%M-%S", time.localtime())+".jpg"
+  filename=picpath+time.strftime("%y%m%d_%H%M%S", time.localtime())+".jpg"
   pixbuf.save(filename,"jpeg",{"quality":"100"})
   print (filename)
 #---------------------------------------------------
@@ -81,6 +80,7 @@ def key_press_cb(widget,event):
   global pipe
   global save
   global ShotPressed
+  print("key ",event.keyval," pressed")
   if event.keyval==gtk.keysyms.F6:
     if ShotPressed==False: #Для избежания автоповтора нажатий
       ShotPressed=True
@@ -88,32 +88,25 @@ def key_press_cb(widget,event):
         save=True
         print("save flag set")
 
-  if event.keyval==gtk.keysyms.Escape: #а по ESC выходим
+  if event.keyval==gtk.keysyms.Escape: #по ESC выходим
     window.destroy()
 #---------------------------------------------------
 def key_release_cb(widget,event):
 #При отпускании F6 записываем буфер в jpeg
   global pipe
   global ShotPressed
+  print("key ",event.keyval," released")
   if event.keyval==gtk.keysyms.F6:
       if mode=="foto":
         save_jpeg()
       if mode=="livefoto":
         save_jpeg()
-        make_pipe()
         print ("resume pipe")
+        make_pipe()
+        print ("pipe resumed")
       ShotPressed=False  #снимаем признак нажатия кнопки спуска
-
-#---------------------------------------------------
-def expose_cb(widget, event):
-  #При перерисовке области screen устанавливаем где будет вывод xvimagesink
-  global sink
-  if mode[0:4]=="live":
-    sink.set_xwindow_id(widget.window.xid)
 #---------------------------------------------------
 def destroy(widget, data=None):
-  # it is important to stop pipeline so there will be no
-  # X-related errors when window is destroyed before the video sink
   global pipe
   pipe.set_state(gst.STATE_NULL)
   gtk.main_quit()
@@ -124,10 +117,10 @@ def mode_change (widget, data=None):
   global modeBtn
   global dispBtn
   if dispBtn.get_active():
-    dispBtn.set_label("Live view\n   on")
+    dispBtn.set_label("Live view\n     on")
     mode="live"
   else:
-    dispBtn.set_label("Live view\n   off")
+    dispBtn.set_label("Live view\n     off")
     mode=""
 
   if modeBtn.get_active():
@@ -149,13 +142,12 @@ def make_pipe():
   global queue2
   global colorsp
   global caps2
-  global tmpcaps
   global fakesink
   global pad
 
   global mode
   print (mode)
-  #Убиваем трубу
+  #Kill pipeline before create new
   try:
     pipe.set_state(gst.STATE_NULL)
   except AttributeError:
@@ -166,7 +158,7 @@ def make_pipe():
   if mode=="foto":
     pipe.add(src,caps1,colorsp,caps2,fakesink)
     gst.element_link_many(src,caps1,colorsp,caps2,fakesink)
-    #gst-launch-0.10 videotestsrc ! video/x-raw-yuv,width=160,height=120,framerate=8/1 ! ffmpegcolorspace ! video/x-raw-rgb,bpp=24,depth=24,framerate=8/1 ! fakesink
+    #gst-launch-0.10 videotestsrc ! video/x-raw-yuv,width=640,height=480,framerate=8/1 ! ffmpegcolorspace ! video/x-raw-rgb,bpp=24,depth=24,framerate=8/1 ! fakesink
 
   if mode=="livefoto":
     pipe.add(src,caps1,tee,queue1,sink,queue2,colorsp,caps2,fakesink)
@@ -183,8 +175,7 @@ def make_pipe():
     gst.element_link_many(src,caps1,tee,queue1,sink)
     gst.element_link_many(tee,queue2,colorsp,caps2,fakesink)
 
-  pad.add_buffer_probe(buffer_cb)
-  if mode[0:4]=="live":
+  if mode[0:4]=="live": #put sink picture in its place
     sink.set_xwindow_id(screen.window.xid)
   pipe.set_state(gst.STATE_PLAYING)
 #---------------------------------------------------
@@ -196,7 +187,6 @@ def create_interface():
   window.add(box)
   screen = gtk.DrawingArea()
   screen.set_size_request(640, 480)
-  screen.connect("expose-event",expose_cb)
   box.put(screen,0,0)
   hbox=gtk.VBox()
   hbox.set_size_request(150, 480)
@@ -210,7 +200,7 @@ def create_interface():
   dispBtn.connect("toggled",mode_change)
   hbox.add(dispBtn)
 #---------------------------------------------------
-#Основная программа
+#main program
 if hildon:
   window = hildon.Window()
   window.fullscreen()
@@ -220,7 +210,12 @@ window.connect("destroy", destroy)
 window.connect("key_press_event",key_press_cb)
 window.connect("key_release_event",key_release_cb)
 
-create_interface()
-mode_change(None)
+create_interface() #draw buttons
+mode_change(None) #make pipeline
+
+#assign callback function to framebuffer
+pad=colorsp.get_pad("src")
+pad.add_buffer_probe(buffer_cb)
+
 window.show_all()
 gtk.main()
