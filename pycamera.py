@@ -29,6 +29,11 @@ caps2=gst.element_factory_make("capsfilter")
 caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,bpp=24,depth=24,framerate=8/1"))
 fakesink = gst.element_factory_make("fakesink")
 
+mux=gst.element_factory_make("avimux")
+filesink=gst.element_factory_make("filesink")
+filesink.set_property('location', "/media/mmc1/camera/videos/video.avi")
+enc=gst.element_factory_make("jpegenc")
+
 mode="foto" # Режим foto,livefoto,video,livevideo,record,liverecord,stream,livestream
 #Режимы на live с отображением картинки на экране
 ShotPressed=False
@@ -87,7 +92,9 @@ def key_press_cb(widget,event):
       if (mode=="foto") or (mode=="livefoto"):
         save=True
         print("save flag set")
-
+      if mode=="video":
+        pipe.set_state(gst.STATE_PLAYING)
+        print("record start")
   if event.keyval==gtk.keysyms.Escape: #по ESC выходим
     window.destroy()
 #---------------------------------------------------
@@ -104,6 +111,9 @@ def key_release_cb(widget,event):
         print ("resume pipe")
         make_pipe()
         print ("pipe resumed")
+      if mode=="video":
+        pipe.set_state(gst.STATE_PAUSED)
+        print("record stop")  
       ShotPressed=False  #снимаем признак нажатия кнопки спуска
 #---------------------------------------------------
 def destroy(widget, data=None):
@@ -158,26 +168,35 @@ def make_pipe():
   if mode=="foto":
     pipe.add(src,caps1,colorsp,caps2,fakesink)
     gst.element_link_many(src,caps1,colorsp,caps2,fakesink)
+    pipe.set_state(gst.STATE_PLAYING)
     #gst-launch-0.10 videotestsrc ! video/x-raw-yuv,width=640,height=480,framerate=8/1 ! ffmpegcolorspace ! video/x-raw-rgb,bpp=24,depth=24,framerate=8/1 ! fakesink
 
   if mode=="livefoto":
     pipe.add(src,caps1,tee,queue1,sink,queue2,colorsp,caps2,fakesink)
     gst.element_link_many(src,caps1,tee,queue1,sink)
     gst.element_link_many(tee,queue2,colorsp,caps2,fakesink)
+    pipe.set_state(gst.STATE_PLAYING)
     #gst-launch-0.10 videotestsrc ! tee name=tee tee. ! queue ! xvimagesink tee. ! queue ! ffmpegcolorspace ! video/x-raw-rgb,width=640,height=480,bpp=24,depth=24,framerate=8/1 ! fakesink
 
   if mode=="video":
-    #в режиме video труба создаётся только непосредственно при записи
-    pass
+    #в режиме video труба создаётся но не стартует до нажатия кнопки
+    pipe.add(src,colorsp,caps1,enc,filesink)
+    gst.element_link_many(src,colorsp,caps1,enc,filesink)
+    pipe.set_state(gst.STATE_PAUSED)
+#gst-launch avimux name=mux ! filesink location=/media/mmc1/camera/videos/video.avi \
+#{v4l2src ! video/x-raw-yuv,width=320,height=240,framerate=25/1 \
+#! queue ! hantro4200enc profile-and-level=245 bit-rate=512 intra-mode=true \
+#! queue ! mux. } { dsppcmsrc ! queue ! mux. }
 
   if mode=="livevideo":
+#создаем трубу как для livefoto, при нажатии пересоздаем
     pipe.add(src,caps1,tee,queue1,sink,queue2,colorsp,caps2,fakesink)
     gst.element_link_many(src,caps1,tee,queue1,sink)
     gst.element_link_many(tee,queue2,colorsp,caps2,fakesink)
+    pipe.set_state(gst.STATE_PLAYING)
 
   if mode[0:4]=="live": #put sink picture in its place
     sink.set_xwindow_id(screen.window.xid)
-  pipe.set_state(gst.STATE_PLAYING)
 #---------------------------------------------------
 def create_interface():
   global screen
