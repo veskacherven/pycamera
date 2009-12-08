@@ -10,7 +10,8 @@ pygst.require("0.10")
 import gst
 import Image
 import time
-import gobject #for idle loop
+import gobject #for idle loop and threads
+gobject.threads_init()
 
 #Глобальные объекты и переменные
 pipe=None
@@ -19,20 +20,21 @@ if hildon:
 else:
   src = gst.element_factory_make("videotestsrc")
 caps1=gst.element_factory_make("capsfilter")
-caps1.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480,framerate=8/"))
+caps1.set_property('caps', gst.caps_from_string("video/x-raw-rgb,width=640,height=480,framerate=25/1"))
 tee=gst.element_factory_make("tee")
 queue1= gst.element_factory_make("queue")
 sink=gst.element_factory_make("xvimagesink")
 queue2= gst.element_factory_make("queue")
 colorsp=gst.element_factory_make("ffmpegcolorspace")
 caps2=gst.element_factory_make("capsfilter")
-caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,bpp=24,depth=24,framerate=8/1"))
+caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,bpp=24,depth=24"))
 fakesink = gst.element_factory_make("fakesink")
 
 mux=gst.element_factory_make("avimux")
 filesink=gst.element_factory_make("filesink")
-filesink.set_property('location', "/media/mmc1/camera/videos/video.avi")
 enc=gst.element_factory_make("jpegenc")
+caps3=gst.element_factory_make("capsfilter")
+caps3.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480,framerate=25/1"))
 
 mode="foto" # Режим foto,livefoto,video,livevideo,record,liverecord,stream,livestream
 #Режимы на live с отображением картинки на экране
@@ -40,7 +42,7 @@ ShotPressed=False
 #Кнопки
 dispBtn=None
 modeBtn=None
-#Признак того, что кадр в буффере нкжно сохраненить в файл
+#Признак того, что кадр в буффере нужно сохраненить в файл
 save=False
 #добавить трёхсекундный просмотр картинки после съёмки, если включено Live view
 #show_image=False
@@ -49,9 +51,10 @@ picbuf=None
 if hildon:
     #Путь для сохранения - вместо жестко прописаного добавить чтение ini файла и создание инишки при отсутствии с парамертами по умолчанию
     picpath="/media/mmc1/camera/images/"
+    vidpath="/media/mmc1/camera/videos/"
 else:
     picpath="./"
-
+    vidpath="./"
 #---------------------------------------------------
 def save_jpeg():
   global picbuf
@@ -93,6 +96,8 @@ def key_press_cb(widget,event):
         save=True
         print("save flag set")
       if mode=="video":
+        filename=vidpath+time.strftime("%y%m%d_%H%M%S", time.localtime())+".avi"
+        filesink.set_property('location', filename)
         pipe.set_state(gst.STATE_PLAYING)
         print("record start")
   if event.keyval==gtk.keysyms.Escape: #по ESC выходим
@@ -146,6 +151,7 @@ def make_pipe():
   global pipe
   global caps1
   global resizer
+  global scalecaps
   global tee
   global queue1
   global sink
@@ -180,8 +186,8 @@ def make_pipe():
 
   if mode=="video":
     #в режиме video труба создаётся но не стартует до нажатия кнопки
-    pipe.add(src,colorsp,caps1,enc,filesink)
-    gst.element_link_many(src,colorsp,caps1,enc,filesink)
+    pipe.add(src,colorsp,caps3,enc,filesink)
+    gst.element_link_many(src,colorsp,caps3,enc,filesink)
     pipe.set_state(gst.STATE_PAUSED)
 #gst-launch avimux name=mux ! filesink location=/media/mmc1/camera/videos/video.avi \
 #{v4l2src ! video/x-raw-yuv,width=320,height=240,framerate=25/1 \
