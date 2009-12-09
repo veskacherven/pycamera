@@ -32,7 +32,16 @@ fakesink = gst.element_factory_make("fakesink")
 
 mux=gst.element_factory_make("avimux")
 filesink=gst.element_factory_make("filesink")
+#enc=gst.element_factory_make("hantro4200enc")
 enc=gst.element_factory_make("jpegenc")
+#enc.set_property('preset',2)
+#enc.set_property('stream-type',3)
+#enc.set_property('profile-and-level',5)
+#enc.set_property('iframe-rate',1)
+#enc.set_property('bit-rate',384)
+caps3=gst.element_factory_make("capsfilter")
+caps3.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480,framerate=25/1"))
+
 caps3=gst.element_factory_make("capsfilter")
 caps3.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480,framerate=25/1"))
 
@@ -96,6 +105,8 @@ def key_press_cb(widget,event):
         save=True
         print("save flag set")
       if mode=="video":
+#        filename=vidpath+time.strftime("%y%m%d_%H%M%S", time.localtime())+".mp4"
+        filesink.set_property('location', filename)
         filename=vidpath+time.strftime("%y%m%d_%H%M%S", time.localtime())+".avi"
         filesink.set_property('location', filename)
         pipe.set_state(gst.STATE_PLAYING)
