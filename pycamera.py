@@ -19,6 +19,7 @@ if hildon:
   src = gst.element_factory_make("v4l2src", "src")
 else:
   src = gst.element_factory_make("videotestsrc")
+
 caps1=gst.element_factory_make("capsfilter")
 caps1.set_property('caps', gst.caps_from_string("video/x-raw-rgb,width=640,height=480,framerate=25/1"))
 tee=gst.element_factory_make("tee")
@@ -32,8 +33,8 @@ fakesink = gst.element_factory_make("fakesink")
 
 mux=gst.element_factory_make("avimux")
 filesink=gst.element_factory_make("filesink")
-#enc=gst.element_factory_make("hantro4200enc")
 enc=gst.element_factory_make("jpegenc")
+#enc=gst.element_factory_make("hantro4200enc") #если писать в mp4
 #enc.set_property('preset',2)
 #enc.set_property('stream-type',3)
 #enc.set_property('profile-and-level',5)
@@ -41,10 +42,7 @@ enc=gst.element_factory_make("jpegenc")
 #enc.set_property('bit-rate',384)
 caps3=gst.element_factory_make("capsfilter")
 caps3.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480,framerate=25/1"))
-
-caps3=gst.element_factory_make("capsfilter")
-caps3.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480,framerate=25/1"))
-
+record=False #признак идущей записи видео
 mode="foto" # Режим foto,livefoto,video,livevideo,record,liverecord,stream,livestream
 #Режимы на live с отображением картинки на экране
 ShotPressed=False
@@ -81,7 +79,7 @@ def buffer_cb(pad,buffer):
       print ("frame buffer copied")
       save=False
       picbuf=buffer
-      if mode=="livefoto":
+      if mode=="livefoto": # в режиме live на время записи останавливаем pipeline
         gobject.idle_add(pause_pipe) #Adds a function to be called whenever there are no higher priority events pending
     return True
 #---------------------------------------------------
@@ -97,20 +95,41 @@ def key_press_cb(widget,event):
   global pipe
   global save
   global ShotPressed
+  global record
+  global vidpath
   print("key ",event.keyval," pressed")
+  print ("record=",record)
   if event.keyval==gtk.keysyms.F6:
     if ShotPressed==False: #Для избежания автоповтора нажатий
       ShotPressed=True
       if (mode=="foto") or (mode=="livefoto"):
         save=True
         print("save flag set")
-      if mode=="video":
-#        filename=vidpath+time.strftime("%y%m%d_%H%M%S", time.localtime())+".mp4"
-        filesink.set_property('location', filename)
-        filename=vidpath+time.strftime("%y%m%d_%H%M%S", time.localtime())+".avi"
-        filesink.set_property('location', filename)
-        pipe.set_state(gst.STATE_PLAYING)
-        print("record start")
+      if mode=="video": # устанавливаем имя файла для видео
+        if record==False: #если запись не идет, то начинаем писать
+          record=True
+          filename=vidpath+time.strftime("%y%m%d_%H%M%S", time.localtime())+".avi"
+          filesink.set_property('location', filename)
+          pipe.set_state(gst.STATE_PLAYING)
+          print("record start")
+        else: #останавливаем запись
+          pipe.set_state(gst.STATE_NULL)
+          record=False
+          print("record stop")  
+
+      if mode=="livevideo": # устанавливаем имя файла для видео
+        if record==False: #если запись не идет, то начинаем писать
+          record=True
+          pipe.set_state(gst.STATE_NULL)
+          filename=vidpath+time.strftime("%y%m%d_%H%M%S", time.localtime())+".avi"
+          filesink.set_property('location', filename)
+          sink.set_xwindow_id(screen.window.xid)
+          pipe.set_state(gst.STATE_PLAYING)
+          print("record start")
+        else: #останавливаем запись
+          make_pipe()
+          print("record stop")  
+
   if event.keyval==gtk.keysyms.Escape: #по ESC выходим
     window.destroy()
 #---------------------------------------------------
@@ -127,9 +146,6 @@ def key_release_cb(widget,event):
         print ("resume pipe")
         make_pipe()
         print ("pipe resumed")
-      if mode=="video":
-        pipe.set_state(gst.STATE_PAUSED)
-        print("record stop")  
       ShotPressed=False  #снимаем признак нажатия кнопки спуска
 #---------------------------------------------------
 def destroy(widget, data=None):
@@ -171,7 +187,7 @@ def make_pipe():
   global caps2
   global fakesink
   global pad
-
+  global record
   global mode
   print (mode)
   #Kill pipeline before create new
@@ -181,6 +197,7 @@ def make_pipe():
     pass
   pipe=None
   pipe=gst.Pipeline()
+  record=False
 
   if mode=="foto":
     pipe.add(src,caps1,colorsp,caps2,fakesink)
@@ -199,17 +216,18 @@ def make_pipe():
     #в режиме video труба создаётся но не стартует до нажатия кнопки
     pipe.add(src,colorsp,caps3,enc,filesink)
     gst.element_link_many(src,colorsp,caps3,enc,filesink)
-    pipe.set_state(gst.STATE_PAUSED)
+    pipe.set_state(gst.STATE_NULL)
 #gst-launch avimux name=mux ! filesink location=/media/mmc1/camera/videos/video.avi \
 #{v4l2src ! video/x-raw-yuv,width=320,height=240,framerate=25/1 \
 #! queue ! hantro4200enc profile-and-level=245 bit-rate=512 intra-mode=true \
 #! queue ! mux. } { dsppcmsrc ! queue ! mux. }
 
   if mode=="livevideo":
-#создаем трубу как для livefoto, при нажатии пересоздаем
-    pipe.add(src,caps1,tee,queue1,sink,queue2,colorsp,caps2,fakesink)
+  #создаем трубу в /dev/null ,при нажатии пишем в файл
+    pipe.add(src,caps1,tee,queue1,sink,queue2,colorsp,caps3,enc,filesink)
     gst.element_link_many(src,caps1,tee,queue1,sink)
-    gst.element_link_many(tee,queue2,colorsp,caps2,fakesink)
+    gst.element_link_many(tee,queue2,colorsp,caps3,enc,filesink)
+    filesink.set_property('location', "/dev/null") 
     pipe.set_state(gst.STATE_PLAYING)
 
   if mode[0:4]=="live": #put sink picture in its place
