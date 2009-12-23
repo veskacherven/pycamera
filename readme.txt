@@ -1,4 +1,4 @@
-PyCamera 0.1b
+﻿PyCamera 0.1b
 ---------- 
 Photo / video recorder for Internet Tablet N810 
 Фото/видео рекордер для интернет-планшета N810
@@ -19,8 +19,7 @@ If you do not run, do chmod + x pycamera.py
 Select mode foto / video. 
 For photo, every click on a button Fullscreen - one frame. 
 For the video, one click Fullscreen - start recording, the second end. 
-Photo is written on a removable memory card folder camera / images, video camera / videos 
-Folders should be created. 
+Photo is written on a removable memory card folder Images, video - Videos 
 
 Features: 
 
@@ -42,8 +41,7 @@ Features:
 Выбираем режим foto/video.
 Для фото, каждое нажатие кнопки Fullscreen - один кадр.
 Для видео, одно нажатие кнопки Fullscreen - начало записи, второе конец.
-Фото пишется на съемную карту памяти в папку camera/images, видео в camera/videos
-Папки должны быть предварительно созданы.
+Фото пишется на съемную карту памяти в папку Images, видео в Videos
 
 Возможности:
 

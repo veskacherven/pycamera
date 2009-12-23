@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import os
 import gtk
 try:
   import hildon
@@ -30,22 +31,16 @@ colorsp=gst.element_factory_make("ffmpegcolorspace")
 caps2=gst.element_factory_make("capsfilter")
 caps2.set_property('caps', gst.caps_from_string("video/x-raw-rgb,bpp=24,depth=24"))
 fakesink = gst.element_factory_make("fakesink")
-
 mux=gst.element_factory_make("avimux")
 filesink=gst.element_factory_make("filesink")
 enc=gst.element_factory_make("jpegenc")
 #enc=gst.element_factory_make("hantro4200enc") #если писать в mp4
-#enc.set_property('preset',2)
-#enc.set_property('stream-type',3)
-#enc.set_property('profile-and-level',5)
-#enc.set_property('iframe-rate',1)
-#enc.set_property('bit-rate',384)
 caps3=gst.element_factory_make("capsfilter")
 caps3.set_property('caps', gst.caps_from_string("video/x-raw-yuv,width=640,height=480,framerate=25/1"))
 record=False #признак идущей записи видео
 mode="foto" # Режим foto,livefoto,video,livevideo,record,liverecord,stream,livestream
 #Режимы на live с отображением картинки на экране
-ShotPressed=False
+ShotPressed=False #нажата ли кнопка съемки
 #Кнопки
 dispBtn=None
 modeBtn=None
@@ -56,9 +51,14 @@ save=False
 #Буфер для картинки
 picbuf=None
 if hildon:
-    #Путь для сохранения - вместо жестко прописаного добавить чтение ini файла и создание инишки при отсутствии с парамертами по умолчанию
-    picpath="/media/mmc1/camera/images/"
-    vidpath="/media/mmc1/camera/videos/"
+    #Путь для сохранения - вместо жестко прописаного добавить чтение ini файла и создание инишки при отсутствии с парамертами по умолчанию    
+    picpath="/media/mmc1/Images/"
+    vidpath="/media/mmc1/Videos/"
+    try:
+      os.mkdir(picpath)
+      os.mkdir(vidpath)
+    except OSError:
+      pass
 else:
     picpath="./"
     vidpath="./"
