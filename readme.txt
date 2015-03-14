@@ -61,7 +61,7 @@ Lesser General Public License for more details.
 
 --- 
 Vasil Litvin 
-http://code.google.com/p/pycamera/ 
+http://github.com/veskacherven/pycamera
 
 This distrubutive packet contains the following files: 
 
